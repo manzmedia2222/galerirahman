@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#121316">
+<title>galerirahman</title>
+<style>
+:root{
+  --bg:#121316; --bar:#1a1c20; --card:#23262c; --line:#2f333b;
+  --text:#eceef2; --sub:#9aa1ad; --accent:#4cc2ff; --danger:#ff6b6b; --ok:#5fd38d;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  padding-bottom:env(safe-area-inset-bottom,0)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+header{position:sticky;top:0;z-index:20;background:var(--bar);border-bottom:1px solid var(--line);
+  padding:10px 14px 0;padding-top:max(10px,env(safe-area-inset-top,0px))}
+.top{display:flex;align-items:center;justify-content:space-between;min-height:36px}
+.brand{font-size:20px;font-weight:700;letter-spacing:.2px}
+.brand small{display:block;font-size:12px;font-weight:400;color:var(--sub)}
+.hbtn{padding:8px 12px;border-radius:18px;background:var(--card);font-size:14px}
+.tabs{display:flex;gap:4px;margin-top:6px}
+.tab{padding:9px 14px;color:var(--sub);border-bottom:2px solid transparent;font-size:14px}
+.tab.on{color:var(--text);border-color:var(--accent)}
+#selbar{display:none;align-items:center;gap:8px;min-height:36px}
+body.sel #selbar{display:flex}
+body.sel .top{display:none}
+#selbar .cnt{flex:1;font-weight:600}
+main{padding:0 0 90px}
+.day{padding:14px 14px 6px;font-size:13px;color:var(--sub);font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+@media(min-width:600px){.grid{grid-template-columns:repeat(5,1fr)}}
+@media(min-width:900px){.grid{grid-template-columns:repeat(7,1fr)}}
+.cell{position:relative;aspect-ratio:1;background:var(--card);overflow:hidden;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.cell img{width:100%;height:100%;object-fit:cover;display:block}
+.cell .fav{position:absolute;left:5px;bottom:4px;font-size:14px;text-shadow:0 0 3px #000}
+.cell .chk{display:none;position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;
+  border:2px solid #fff;background:rgba(0,0,0,.35);align-items:center;justify-content:center;font-size:13px;font-weight:700}
+body.sel .cell .chk{display:flex}
+.cell.picked img{transform:scale(.86);border-radius:6px}
+.cell.picked .chk{background:var(--accent);border-color:var(--accent);color:#000}
+.empty{text-align:center;color:var(--sub);padding:70px 24px}
+.empty b{display:block;color:var(--text);font-size:17px;margin-bottom:6px}
+.more{display:block;margin:16px auto;padding:10px 20px;border-radius:20px;background:var(--card)}
+#fab{position:fixed;right:18px;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:50%;
+  background:var(--accent);color:#06121a;font-size:30px;line-height:1;z-index:25;box-shadow:0 2px 8px rgba(0,0,0,.5)}
+body.sel #fab{display:none}
+
+/* sheet / modal */
+.back{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:40;display:none}
+.back.on{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--bar);border-radius:16px 16px 0 0;
+  padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));display:none;max-height:88vh;overflow:auto}
+.sheet.on{display:block}
+.sheet h3{font-size:16px;margin-bottom:12px}
+.opt{display:block;width:100%;text-align:left;padding:14px;border-radius:12px;background:var(--card);margin-bottom:8px}
+.opt small{display:block;color:var(--sub);font-size:12px;margin-top:2px}
+textarea{width:100%;min-height:130px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;
+  padding:10px;font:14px/1.4 ui-monospace,Menlo,Consolas,monospace;resize:vertical}
+.row{display:flex;gap:8px;margin-top:10px}
+.btn{flex:1;padding:12px;border-radius:10px;background:var(--card);text-align:center}
+.btn.pri{background:var(--accent);color:#06121a;font-weight:700}
+.btn.dan{background:var(--danger);color:#1b0505;font-weight:700}
+.btn[disabled]{opacity:.5}
+.hint{color:var(--sub);font-size:12px;margin-top:8px}
+
+/* progress */
+#prog{position:fixed;left:12px;right:12px;bottom:calc(86px + env(safe-area-inset-bottom,0px));z-index:30;background:var(--card);
+  border-radius:12px;padding:10px 12px;display:none;border:1px solid var(--line)}
+#prog.on{display:block}
+#prog .t{font-size:13px;margin-bottom:6px}
+#prog .bar{height:5px;background:var(--bg);border-radius:3px;overflow:hidden}
+#prog .bar i{display:block;height:100%;width:0;background:var(--accent)}
+
+/* viewer */
+#viewer{position:fixed;inset:0;z-index:60;background:#000;display:none;flex-direction:column}
+#viewer.on{display:flex}
+.vtop,.vbot{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(0,0,0,.75);z-index:2}
+.vtop{padding-top:max(8px,env(safe-area-inset-top,0px))}
+.vbot{padding-bottom:max(8px,env(safe-area-inset-bottom,0px))}
+.vtop span{color:var(--sub);font-size:13px}
+.vb{padding:10px 14px;font-size:14px}
+.stage{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;touch-action:pan-y}
+.stage img{max-width:100%;max-height:100%;object-fit:contain}
+.nav{position:absolute;top:50%;transform:translateY(-50%);font-size:26px;padding:14px 10px;color:#fff;background:rgba(0,0,0,.35)}
+.nav.l{left:0;border-radius:0 8px 8px 0}.nav.r{right:0;border-radius:8px 0 0 8px}
+@media(hover:none){.nav{display:none}}
+#toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:90;
+  background:#000;color:#fff;border:1px solid var(--line);padding:9px 16px;border-radius:20px;font-size:13px;display:none;max-width:90%;text-align:center}
+#toast.on{display:block}
+#loading{text-align:center;color:var(--sub);padding:60px 0}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="top">
+    <div class="brand">galerirahman<small id="count">memuat…</small></div>
+    <button class="hbtn" id="btnSelect">Pilih</button>
+  </div>
+  <div id="selbar">
+    <button class="hbtn" id="selCancel">Batal</button>
+    <div class="cnt" id="selCnt">0 dipilih</div>
+    <button class="hbtn" id="selAll">Semua</button>
+    <button class="hbtn" id="selFav">Favorit</button>
+    <button class="hbtn" id="selDel" style="color:var(--danger)">Hapus</button>
+  </div>
+  <div class="tabs">
+    <button class="tab on" data-tab="all">Semua</button>
+    <button class="tab" data-tab="fav">Favorit</button>
+  </div>
+</header>
+
+<main id="main"><div id="loading">Memuat galeri…</div></main>
+
+<button id="fab" aria-label="Tambah foto">+</button>
+
+<div id="prog"><div class="t" id="progT"></div><div class="bar"><i id="progB"></i></div></div>
+
+<!-- menu tambah -->
+<div class="back" id="back"></div>
+<div class="sheet" id="shAdd">
+  <h3>Tambah foto</h3>
+  <button class="opt" id="optUp">Upload dari HP<small>Pilih banyak foto sekaligus, diupload ke ImgBB</small></button>
+  <button class="opt" id="optLink">Tempel link ImgBB<small>Link langsung atau link halaman ibb.co, boleh banyak</small></button>
+</div>
+<div class="sheet" id="shLink">
+  <h3>Tempel link ImgBB</h3>
+  <textarea id="linkTxt" placeholder="Tempel link di sini, satu per baris atau campur teks.&#10;https://i.ibb.co/xxxx/foto.jpg&#10;https://ibb.co/AbCdEfG"></textarea>
+  <div class="hint">Link halaman (ibb.co/…) akan dicari otomatis link gambarnya. Kode embed (HTML, BBCode, Markdown) juga boleh, link gambarnya dipilih otomatis.</div>
+  <div class="row">
+    <button class="btn" id="linkCancel">Batal</button>
+    <button class="btn pri" id="linkOk">Tambahkan</button>
+  </div>
+</div>
+<div class="sheet" id="shDel">
+  <h3 id="delTitle">Hapus foto?</h3>
+  <div class="hint" style="margin-top:0">Foto dihapus dari galeri ini. File di ImgBB tidak ikut terhapus.</div>
+  <div class="row">
+    <button class="btn" id="delNo">Batal</button>
+    <button class="btn dan" id="delYes">Hapus</button>
+  </div>
+</div>
+
+<!-- viewer -->
+<div id="viewer">
+  <div class="vtop"><button class="vb" id="vClose">‹ Kembali</button><span id="vInfo"></span></div>
+  <div class="stage" id="stage">
+    <img id="vImg" alt="">
+    <button class="nav l" id="vPrev">‹</button>
+    <button class="nav r" id="vNext">›</button>
+  </div>
+  <div class="vbot">
+    <button class="vb" id="vFav">☆ Favorit</button>
+    <button class="vb" id="vCopy">Salin link</button>
+    <button class="vb" id="vOpen">Buka asli</button>
+    <button class="vb" id="vDel" style="color:var(--danger)">Hapus</button>
+  </div>
+</div>
+<div id="toast"></div>
+<input type="file" id="file" accept="image/*" multiple hidden>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
+import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, updateDoc, writeBatch }
+  from "https://www.gstatic.com/firebasejs/13.0.0/firebase-firestore.js";
+
+const IMGBB_KEY = "3faaa1560d148935ab9c74cc77d4416b";
+const firebaseConfig = {
+  apiKey: "AIzaSyAj4VsvCvNbOHvAdCEygFek67MNJ7jGJso",
+  authDomain: "webpengintai.firebaseapp.com",
+  projectId: "webpengintai",
+  storageBucket: "webpengintai.firebasestorage.app",
+  messagingSenderId: "827592814515",
+  appId: "1:827592814515:web:92b926e260efd8893a25c6",
+  measurementId: "G-0G4SSPBSVS"
+};
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const COL = "galerirahman";
+const PAGE = 90;
+
+const $ = id => document.getElementById(id);
+let items = [];          // semua foto, terbaru dulu
+let tab = "all";
+let shown = PAGE;
+let selMode = false;
+const picked = new Set();
+let viewList = [];       // daftar yang sedang tampil (untuk viewer)
+let vIdx = -1;
+let delIds = [];
+
+/* ---------- util ---------- */
+let toastT;
+function toast(msg){
+  const t = $("toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove("on"), 2600);
+}
+const dayLabel = ms => new Date(ms).toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"});
+
+/* ---------- data realtime ---------- */
+onSnapshot(query(collection(db, COL), orderBy("createdAt","desc")), snap => {
+  items = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+  $("count").textContent = items.length + " foto";
+  render();
+  if ($("viewer").classList.contains("on")) refreshViewer();
+}, err => {
+  console.error(err);
+  $("loading") && ($("loading").textContent = "Gagal memuat. Cek aturan (rules) Firestore.");
+  $("count").textContent = "error";
+  toast("Gagal terhubung ke Firestore");
+});
+
+/* ---------- render ---------- */
+function render(){
+  const main = $("main");
+  const list = tab === "fav" ? items.filter(i=>i.fav) : items;
+  viewList = list;
+  main.textContent = "";
+  if(!list.length){
+    const e = document.createElement("div"); e.className = "empty";
+    e.innerHTML = tab === "fav"
+      ? "<b>Belum ada favorit</b>Buka foto lalu tekan Favorit."
+      : "<b>Galeri masih kosong</b>Tekan tombol + untuk upload foto atau tempel link ImgBB.";
+    main.appendChild(e); return;
+  }
+  const part = list.slice(0, shown);
+  let lastDay = "", grid = null;
+  part.forEach((it, idx) => {
+    const d = dayLabel(it.createdAt || Date.now());
+    if(d !== lastDay){
+      lastDay = d;
+      const h = document.createElement("div"); h.className = "day"; h.textContent = d;
+      grid = document.createElement("div"); grid.className = "grid";
+      main.append(h, grid);
+    }
+    const c = document.createElement("div");
+    c.className = "cell" + (picked.has(it.id) ? " picked" : "");
+    c.dataset.id = it.id; c.dataset.idx = idx;
+    const img = new Image();
+    img.loading = "lazy"; img.decoding = "async"; img.alt = it.name || "";
+    img.src = it.thumb || it.url;
+    img.onerror = () => { if(img.src !== it.url){ img.src = it.url; } };
+    c.appendChild(img);
+    if(it.fav){ const f = document.createElement("span"); f.className = "fav"; f.textContent = "★"; c.appendChild(f); }
+    const k = document.createElement("span"); k.className = "chk"; k.textContent = picked.has(it.id) ? "✓" : "";
+    c.appendChild(k);
+    grid.appendChild(c);
+  });
+  if(list.length > shown){
+    const b = document.createElement("button"); b.className = "more"; b.textContent = "Muat lebih banyak";
+    b.onclick = () => { shown += PAGE; render(); };
+    main.appendChild(b);
+  }
+}
+
+/* ---------- tap / tekan lama ---------- */
+let pressT, pressed = false, sx = 0, sy = 0;
+const main = $("main");
+main.addEventListener("touchstart", e => {
+  const c = e.target.closest(".cell"); if(!c) return;
+  pressed = false; sx = e.touches[0].clientX; sy = e.touches[0].clientY;
+  clearTimeout(pressT);
+  pressT = setTimeout(()=>{ pressed = true; if(!selMode) enterSel(); toggle(c.dataset.id); if(navigator.vibrate) navigator.vibrate(20); }, 480);
+},{passive:true});
+main.addEventListener("touchmove", e => {
+  if(Math.abs(e.touches[0].clientX-sx)>8 || Math.abs(e.touches[0].clientY-sy)>8) clearTimeout(pressT);
+},{passive:true});
+main.addEventListener("touchend", ()=>clearTimeout(pressT),{passive:true});
+main.addEventListener("contextmenu", e => { if(e.target.closest(".cell")) e.preventDefault(); });
+main.addEventListener("click", e => {
+  if(pressed){ pressed = false; return; }
+  const c = e.target.closest(".cell"); if(!c) return;
+  if(selMode) toggle(c.dataset.id); else openViewer(+c.dataset.idx);
+});
+
+/* ---------- mode pilih ---------- */
+function enterSel(){ selMode = true; document.body.classList.add("sel"); updSel(); }
+function exitSel(){ selMode = false; picked.clear(); document.body.classList.remove("sel"); render(); }
+function toggle(id){
+  picked.has(id) ? picked.delete(id) : picked.add(id);
+  const c = main.querySelector('.cell[data-id="'+id+'"]');
+  if(c){ c.classList.toggle("picked", picked.has(id)); c.querySelector(".chk").textContent = picked.has(id) ? "✓" : ""; }
+  updSel();
+}
+function updSel(){ $("selCnt").textContent = picked.size + " dipilih"; }
+$("btnSelect").onclick = enterSel;
+$("selCancel").onclick = exitSel;
+$("selAll").onclick = () => { viewList.forEach(i=>picked.add(i.id)); render(); updSel(); };
+$("selFav").onclick = async () => {
+  if(!picked.size) return toast("Pilih foto dulu");
+  try{
+    const b = writeBatch(db);
+    picked.forEach(id => b.update(doc(db, COL, id), {fav:true}));
+    await b.commit(); toast("Ditambahkan ke favorit"); exitSel();
+  }catch(e){ toast("Gagal: " + e.message); }
+};
+$("selDel").onclick = () => { if(!picked.size) return toast("Pilih foto dulu"); askDelete([...picked]); };
+
+/* ---------- tab ---------- */
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
+  tab = t.dataset.tab; shown = PAGE;
+  document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on", x===t));
+  render();
+});
+
+/* ---------- sheet ---------- */
+function openSheet(id){ $("back").classList.add("on"); ["shAdd","shLink","shDel"].forEach(s=>$(s).classList.toggle("on", s===id)); }
+function closeSheets(){ $("back").classList.remove("on"); ["shAdd","shLink","shDel"].forEach(s=>$(s).classList.remove("on")); }
+$("back").onclick = closeSheets;
+$("fab").onclick = () => openSheet("shAdd");
+$("optUp").onclick = () => { closeSheets(); $("file").click(); };
+$("optLink").onclick = () => openSheet("shLink");
+$("linkCancel").onclick = closeSheets;
+
+/* ---------- hapus ---------- */
+function askDelete(ids){
+  delIds = ids;
+  $("delTitle").textContent = ids.length > 1 ? "Hapus " + ids.length + " foto?" : "Hapus foto ini?";
+  openSheet("shDel");
+}
+$("delNo").onclick = closeSheets;
+$("delYes").onclick = async () => {
+  const ids = delIds.slice(); closeSheets();
+  try{
+    for(let i=0;i<ids.length;i+=400){
+      const b = writeBatch(db);
+      ids.slice(i,i+400).forEach(id => b.delete(doc(db, COL, id)));
+      await b.commit();
+    }
+    toast(ids.length + " foto dihapus");
+    if($("viewer").classList.contains("on")) { /* refresh dari snapshot */ }
+    if(selMode) exitSel();
+  }catch(e){ toast("Gagal hapus: " + e.message); }
+};
+
+/* ---------- simpan ke Firestore ---------- */
+async function saveItem(o){
+  await addDoc(collection(db, COL), {
+    url:o.url, thumb:o.thumb || o.url, viewer:o.viewer || "", del:o.del || "",
+    name:o.name || "", fav:false, createdAt:Date.now()
+  });
+}
+
+/* ---------- upload file ke ImgBB ---------- */
+function setProg(text, pct){
+  $("prog").classList.add("on"); $("progT").textContent = text; $("progB").style.width = pct + "%";
+}
+function endProg(){ setTimeout(()=>$("prog").classList.remove("on"), 1500); }
+
+async function uploadOne(file){
+  const fd = new FormData();
+  fd.append("image", file);
+  const r = await fetch("https://api.imgbb.com/1/upload?key=" + IMGBB_KEY, { method:"POST", body:fd });
+  const j = await r.json();
+  if(!j.success) throw new Error((j.error && j.error.message) || "Upload gagal");
+  const d = j.data;
+  await saveItem({
+    url: d.image && d.image.url || d.url,
+    thumb: (d.thumb && d.thumb.url) || (d.medium && d.medium.url) || d.url,
+    viewer: d.url_viewer, del: d.delete_url,
+    name: (d.image && d.image.filename) || file.name
+  });
+}
+
+$("file").onchange = async e => {
+  const files = [...e.target.files]; e.target.value = "";
+  if(!files.length) return;
+  let done = 0, fail = 0, idx = 0;
+  const total = files.length;
+  setProg("Mengupload 0/" + total, 0);
+  async function worker(){
+    while(idx < total){
+      const f = files[idx++];
+      try{ await uploadOne(f); }catch(err){ fail++; console.error(err); }
+      done++;
+      setProg("Mengupload " + done + "/" + total + (fail ? " (gagal " + fail + ")" : ""), done/total*100);
+    }
+  }
+  await Promise.all([worker(), worker()]);
+  setProg(fail ? (total-fail) + " berhasil, " + fail + " gagal" : "Selesai, " + total + " foto ditambahkan", 100);
+  endProg();
+};
+
+/* ---------- tempel link ImgBB ---------- */
+const PROXIES = [
+  u => "https://api.allorigins.win/raw?url=" + encodeURIComponent(u),
+  u => "https://corsproxy.io/?url=" + encodeURIComponent(u),
+  u => "https://api.codetabs.com/v1/proxy?quest=" + encodeURIComponent(u)
+];
+async function fetchHtml(url){
+  for(const p of PROXIES){
+    try{
+      const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), 10000);
+      const r = await fetch(p(url), { signal:ctl.signal }); clearTimeout(t);
+      if(r.ok){ const h = await r.text(); if(h && h.length > 200) return h; }
+    }catch(e){}
+  }
+  throw new Error("Tidak bisa membuka " + url);
+}
+function extractLinks(text){
+  const re = /(?:https?:\/\/)?(?:i\.)?ibb\.co(?:\.com)?\/[^\s"'<>\[\]\)\(,]+/gi;
+  const out = new Set();
+  (text.match(re) || []).forEach(m => {
+    let u = m.replace(/[.;:!]+$/,"");
+    if(!/^https?:\/\//i.test(u)) u = "https://" + u;
+    out.add(u.replace(/^http:\/\//i,"https://"));
+  });
+  return [...out];
+}
+const normUrl = u => { u = (u||"").trim().replace(/&amp;/g,"&"); if(!/^https?:\/\//i.test(u)) u = "https://" + u; return u.replace(/^http:\/\//i,"https://"); };
+const isIbbDirect = u => /^(https?:\/\/)?i\.ibb\.co(\.com)?\//i.test((u||"").trim());
+// Kode embed (HTML, BBCode, Markdown) berisi link halaman + link gambar.
+// Yang diambil hanya link gambarnya, link halaman di dalamnya diabaikan.
+function parseInput(text){
+  const tasks = [];
+  const addPair = (viewer, img) => {
+    if(!isIbbDirect(img)) return false;
+    const url = normUrl(img);
+    tasks.push({ pair:{ url, thumb:url, viewer: normUrl(viewer), name: decodeURIComponent(url.split("/").pop().split("?")[0]) } });
+    return true;
+  };
+  let rest = text;
+  rest = rest.replace(/<a\b[^>]*href=["']([^"']+)["'][^>]*>\s*<img\b[^>]*src=["']([^"']+)["'][^>]*>\s*<\/a>/gi,
+    (m, href, src) => addPair(href, src) ? " " : m);
+  rest = rest.replace(/\[url=([^\]]+)\]\s*\[img\]([^\[]+)\[\/img\]\s*\[\/url\]/gi,
+    (m, href, src) => addPair(href, src) ? " " : m);
+  rest = rest.replace(/\[!\[[^\]]*\]\(([^)\s]+)\)\]\(([^)\s]+)\)/g,
+    (m, src, href) => addPair(href, src) ? " " : m);
+  // <img> berdiri sendiri
+  rest = rest.replace(/<img\b[^>]*src=["']([^"']+)["'][^>]*>/gi,
+    (m, src) => addPair("", src) ? " " : m);
+  rest = rest.replace(/\[img\]([^\[]+)\[\/img\]/gi,
+    (m, src) => addPair("", src) ? " " : m);
+  extractLinks(rest).forEach(l => tasks.push({ link:l }));
+  return tasks;
+}
+const isDirect = u => /^https:\/\/i\.ibb\.co(\.com)?\//i.test(u);
+async function resolveLink(u){
+  if(isDirect(u)) return [{ url:u, thumb:u, name:u.split("/").pop() }];
+  const html = await fetchHtml(u);
+  const doc2 = new DOMParser().parseFromString(html, "text/html");
+  const isAlbum = /\/album\//i.test(u);
+  let urls = [];
+  if(!isAlbum){
+    const og = doc2.querySelector('meta[property="og:image"]');
+    const ls = doc2.querySelector('link[rel="image_src"]');
+    const one = (og && og.content) || (ls && ls.href);
+    if(one) urls = [one];
+  }
+  if(!urls.length){
+    const found = html.match(/https:\/\/i\.ibb\.co(?:\.com)?\/[A-Za-z0-9]+\/[^\s"'<>\\]+\.(?:jpe?g|png|gif|webp|bmp|heic|avif)/gi) || [];
+    urls = [...new Set(found)];
+  }
+  if(!urls.length) throw new Error("Gambar tidak ditemukan di " + u);
+  return urls.map(x => ({ url:x, thumb:x, viewer:isAlbum ? "" : u, name:x.split("/").pop() }));
+}
+
+$("linkOk").onclick = async () => {
+  const txt = $("linkTxt").value.trim();
+  const links = parseInput(txt);
+  if(!links.length) return toast("Tidak ada link ImgBB ditemukan");
+  closeSheets();
+  const have = new Set(items.map(i=>i.url));
+  let done = 0, added = 0, dup = 0, fail = 0;
+  setProg("Memproses 0/" + links.length, 0);
+  let idx = 0;
+  async function worker(){
+    while(idx < links.length){
+      const l = links[idx++];
+      try{
+        const res = l.pair ? [l.pair] : await resolveLink(l.link);
+        for(const r of res){
+          if(have.has(r.url)){ dup++; continue; }
+          have.add(r.url); await saveItem(r); added++;
+        }
+      }catch(err){ fail++; console.error(err); }
+      done++;
+      setProg("Memproses " + done + "/" + links.length, done/links.length*100);
+    }
+  }
+  await Promise.all([worker(), worker()]);
+  $("linkTxt").value = "";
+  let m = added + " foto ditambahkan";
+  if(dup) m += ", " + dup + " sudah ada";
+  if(fail) m += ", " + fail + " gagal";
+  setProg(m, 100); endProg(); toast(m);
+};
+
+/* ---------- viewer ---------- */
+function openViewer(i){ vIdx = i; $("viewer").classList.add("on"); showV(); }
+function closeViewer(){ $("viewer").classList.remove("on"); $("vImg").removeAttribute("src"); }
+function showV(){
+  const it = viewList[vIdx]; if(!it) return closeViewer();
+  $("vImg").src = it.url;
+  $("vInfo").textContent = (vIdx+1) + " / " + viewList.length;
+  $("vFav").textContent = it.fav ? "★ Favorit" : "☆ Favorit";
+}
+function refreshViewer(){
+  if(!viewList.length) return closeViewer();
+  if(vIdx >= viewList.length) vIdx = viewList.length - 1;
+  const it = viewList[vIdx];
+  $("vInfo").textContent = (vIdx+1) + " / " + viewList.length;
+  $("vFav").textContent = it.fav ? "★ Favorit" : "☆ Favorit";
+  if($("vImg").getAttribute("src") !== it.url) $("vImg").src = it.url;
+}
+const step = d => { if(!viewList.length) return; vIdx = (vIdx + d + viewList.length) % viewList.length; showV(); };
+$("vClose").onclick = closeViewer;
+$("vPrev").onclick = () => step(-1);
+$("vNext").onclick = () => step(1);
+$("vFav").onclick = async () => {
+  const it = viewList[vIdx]; if(!it) return;
+  try{ await updateDoc(doc(db, COL, it.id), { fav: !it.fav }); }catch(e){ toast("Gagal: " + e.message); }
+};
+$("vCopy").onclick = async () => {
+  const it = viewList[vIdx]; if(!it) return;
+  try{ await navigator.clipboard.writeText(it.url); toast("Link disalin"); }
+  catch(e){ prompt("Salin link:", it.url); }
+};
+$("vOpen").onclick = () => { const it = viewList[vIdx]; if(it) window.open(it.url, "_blank"); };
+$("vDel").onclick = () => { const it = viewList[vIdx]; if(it) askDelete([it.id]); };
+
+let tx = 0, ty = 0;
+$("stage").addEventListener("touchstart", e => { tx = e.touches[0].clientX; ty = e.touches[0].clientY; },{passive:true});
+$("stage").addEventListener("touchend", e => {
+  const dx = e.changedTouches[0].clientX - tx, dy = e.changedTouches[0].clientY - ty;
+  if(Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)*1.5) step(dx < 0 ? 1 : -1);
+  else if(dy > 90 && Math.abs(dy) > Math.abs(dx)*1.5) closeViewer();
+},{passive:true});
+document.addEventListener("keydown", e => {
+  if(!$("viewer").classList.contains("on")) return;
+  if(e.key === "ArrowLeft") step(-1);
+  else if(e.key === "ArrowRight") step(1);
+  else if(e.key === "Escape") closeViewer();
+});
+</script>
+</body>
+</html>
