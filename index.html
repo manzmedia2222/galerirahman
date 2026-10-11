@@ -81,12 +81,18 @@ textarea{width:100%;min-height:130px;background:var(--bg);color:var(--text);bord
 .vtop{padding-top:max(8px,env(safe-area-inset-top,0px))}
 .vbot{padding-bottom:max(8px,env(safe-area-inset-bottom,0px))}
 .vtop span{color:var(--sub);font-size:13px}
-.vb{padding:10px 14px;font-size:14px}
+.vb{padding:10px 8px;font-size:13px}
+#selbar .hbtn{padding:7px 9px;font-size:13px}
+#selbar .cnt{font-size:13px;min-width:0}
 .stage{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;touch-action:pan-y}
 .stage img{max-width:100%;max-height:100%;object-fit:contain}
 .nav{position:absolute;top:50%;transform:translateY(-50%);font-size:26px;padding:14px 10px;color:#fff;background:rgba(0,0,0,.35)}
 .nav.l{left:0;border-radius:0 8px 8px 0}.nav.r{right:0;border-radius:8px 0 0 8px}
 @media(hover:none){.nav{display:none}}
+#net{display:none;padding:7px 14px;font-size:13px;text-align:center;margin:0 -14px}
+#net.on{display:block}
+#net.off{background:#5a1f1f;color:#ffd0d0}
+#net.slow{background:#5a4415;color:#ffe3a1}
 #toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:90;
   background:#000;color:#fff;border:1px solid var(--line);padding:9px 16px;border-radius:20px;font-size:13px;display:none;max-width:90%;text-align:center}
 #toast.on{display:block}
@@ -105,12 +111,14 @@ textarea{width:100%;min-height:130px;background:var(--bg);color:var(--text);bord
     <div class="cnt" id="selCnt">0 dipilih</div>
     <button class="hbtn" id="selAll">Semua</button>
     <button class="hbtn" id="selFav">Favorit</button>
+    <button class="hbtn" id="selDown">Unduh</button>
     <button class="hbtn" id="selDel" style="color:var(--danger)">Hapus</button>
   </div>
   <div class="tabs">
     <button class="tab on" data-tab="all">Semua</button>
     <button class="tab" data-tab="fav">Favorit</button>
   </div>
+  <div id="net"></div>
 </header>
 
 <main id="main"><div id="loading">Memuat galeri…</div></main>
@@ -128,8 +136,9 @@ textarea{width:100%;min-height:130px;background:var(--bg);color:var(--text);bord
 </div>
 <div class="sheet" id="shLink">
   <h3>Tempel link ImgBB</h3>
+  <button class="btn" id="linkClip" style="width:100%;margin-bottom:10px">Ambil link dari clipboard</button>
   <textarea id="linkTxt" placeholder="Tempel link di sini, satu per baris atau campur teks.&#10;https://i.ibb.co/xxxx/foto.jpg&#10;https://ibb.co/AbCdEfG"></textarea>
-  <div class="hint">Link halaman (ibb.co/…) akan dicari otomatis link gambarnya. Kode embed (HTML, BBCode, Markdown) juga boleh, link gambarnya dipilih otomatis.</div>
+  <div class="hint">Begitu ditempel (paste), link langsung ditambahkan tanpa menekan tombol. Link halaman (ibb.co/…) akan dicari otomatis link gambarnya. Kode embed (HTML, BBCode, Markdown) juga boleh, link gambarnya dipilih otomatis.</div>
   <div class="row">
     <button class="btn" id="linkCancel">Batal</button>
     <button class="btn pri" id="linkOk">Tambahkan</button>
@@ -154,8 +163,9 @@ textarea{width:100%;min-height:130px;background:var(--bg);color:var(--text);bord
   </div>
   <div class="vbot">
     <button class="vb" id="vFav">☆ Favorit</button>
+    <button class="vb" id="vDown">Unduh</button>
     <button class="vb" id="vCopy">Salin link</button>
-    <button class="vb" id="vOpen">Buka asli</button>
+    <button class="vb" id="vOpen">Buka</button>
     <button class="vb" id="vDel" style="color:var(--danger)">Hapus</button>
   </div>
 </div>
@@ -196,9 +206,51 @@ let delIds = [];
 let toastT;
 function toast(msg){
   const t = $("toast"); t.textContent = msg; t.classList.add("on");
-  clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove("on"), 2600);
+  clearTimeout(toastT); toastT = setTimeout(()=>t.classList.remove("on"), Math.max(2600, msg.length*65));
 }
 const dayLabel = ms => new Date(ms).toLocaleDateString("id-ID",{day:"numeric",month:"long",year:"numeric"});
+
+/* ---------- host ImgBB (i.ibb.co.com dicoba dulu, lalu i.ibb.co) ---------- */
+const IBB_RE = /^https?:\/\/i\.ibb\.co(\.com)?\//i;
+const urlVariants = u => { if(!IBB_RE.test(u||"")) return [u]; const p = u.replace(IBB_RE,""); return ["https://i.ibb.co.com/"+p, "https://i.ibb.co/"+p]; };
+const ibbKey = u => (u||"").replace(IBB_RE,"");
+let lastFail = 0;
+function imgFailed(){
+  const t = Date.now(); if(t - lastFail < 10000) return; lastFail = t;
+  toast(navigator.onLine ? "Ada gambar yang gagal dimuat. Jaringan lemah atau ImgBB sedang tidak bisa diakses." : "Tidak ada internet, gambar tidak bisa dimuat.");
+}
+function setImg(img, list, onFail){
+  const c = [];
+  list.forEach(u => urlVariants(u).forEach(x => { if(x && !c.includes(x)) c.push(x); }));
+  let n = 0;
+  img.onerror = () => { n++; if(n < c.length) img.src = c[n]; else { img.onerror = null; onFail && onFail(); } };
+  img.src = c[0];
+}
+function setV(it){ const im = $("vImg"); im.dataset.u = it.url; setImg(im, [it.url, it.thumb], imgFailed); }
+
+/* ---------- status jaringan ---------- */
+const netEl = $("net");
+const conn = () => navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+function isSlow(){
+  const c = conn(); if(!c) return false;
+  return /^(slow-)?2g$/.test(c.effectiveType || "") || (c.downlink > 0 && c.downlink < 0.4) || c.rtt > 1500;
+}
+let wasSlow = false;
+function checkNet(){
+  if(!navigator.onLine){
+    netEl.className = "on off"; netEl.textContent = "Tidak ada koneksi internet. Foto baru belum bisa ditambahkan."; wasSlow = false; return;
+  }
+  const s = isSlow();
+  if(s){
+    netEl.className = "on slow"; netEl.textContent = "Jaringan lemah. Foto bisa lambat dimuat dan upload bisa gagal.";
+    if(!wasSlow) toast("Jaringan lemah, proses bisa lambat");
+  } else netEl.className = "";
+  wasSlow = s;
+}
+window.addEventListener("online", () => { checkNet(); toast("Kembali online"); });
+window.addEventListener("offline", () => { checkNet(); toast("Koneksi internet terputus"); });
+if(conn() && conn().addEventListener) conn().addEventListener("change", checkNet);
+checkNet();
 
 /* ---------- data realtime ---------- */
 onSnapshot(query(collection(db, COL), orderBy("createdAt","desc")), snap => {
@@ -241,8 +293,7 @@ function render(){
     c.dataset.id = it.id; c.dataset.idx = idx;
     const img = new Image();
     img.loading = "lazy"; img.decoding = "async"; img.alt = it.name || "";
-    img.src = it.thumb || it.url;
-    img.onerror = () => { if(img.src !== it.url){ img.src = it.url; } };
+    setImg(img, [it.thumb || it.url, it.url], imgFailed);
     c.appendChild(img);
     if(it.fav){ const f = document.createElement("span"); f.className = "fav"; f.textContent = "★"; c.appendChild(f); }
     const k = document.createElement("span"); k.className = "chk"; k.textContent = picked.has(it.id) ? "✓" : "";
@@ -297,6 +348,11 @@ $("selFav").onclick = async () => {
     await b.commit(); toast("Ditambahkan ke favorit"); exitSel();
   }catch(e){ toast("Gagal: " + e.message); }
 };
+$("selDown").onclick = async () => {
+  const list = items.filter(i => picked.has(i.id));
+  if(!list.length) return toast("Pilih foto dulu");
+  await downloadMany(list); exitSel();
+};
 $("selDel").onclick = () => { if(!picked.size) return toast("Pilih foto dulu"); askDelete([...picked]); };
 
 /* ---------- tab ---------- */
@@ -312,7 +368,7 @@ function closeSheets(){ $("back").classList.remove("on"); ["shAdd","shLink","shD
 $("back").onclick = closeSheets;
 $("fab").onclick = () => openSheet("shAdd");
 $("optUp").onclick = () => { closeSheets(); $("file").click(); };
-$("optLink").onclick = () => openSheet("shLink");
+$("optLink").onclick = () => { openSheet("shLink"); setTimeout(()=>$("linkTxt").focus(), 60); };
 $("linkCancel").onclick = closeSheets;
 
 /* ---------- hapus ---------- */
@@ -338,28 +394,72 @@ $("delYes").onclick = async () => {
 
 /* ---------- simpan ke Firestore ---------- */
 async function saveItem(o){
-  await addDoc(collection(db, COL), {
+  const p = addDoc(collection(db, COL), {
     url:o.url, thumb:o.thumb || o.url, viewer:o.viewer || "", del:o.del || "",
     name:o.name || "", fav:false, createdAt:Date.now()
   });
+  try{ await withTimeout(p, 25000); return "ok"; }
+  catch(e){ if(e.timeout) return "pending"; throw e; }
 }
 
 /* ---------- upload file ke ImgBB ---------- */
+let lastText = "";
 function setProg(text, pct){
+  lastText = text;
   $("prog").classList.add("on"); $("progT").textContent = text; $("progB").style.width = pct + "%";
 }
-function endProg(){ setTimeout(()=>$("prog").classList.remove("on"), 1500); }
+function setNote(n){ $("progT").textContent = lastText + (n ? " (" + n + ")" : ""); }
+function endProg(){ setTimeout(()=>$("prog").classList.remove("on"), 4000); }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(Object.assign(new Error("timeout"), {timeout:true})), ms))]);
+const isNetErr = e => !!e && (e.name === "AbortError" || e.name === "TypeError" || /network|failed to fetch|load failed/i.test(e.message || ""));
+const friendly = e => isNetErr(e) ? "jaringan bermasalah" : ((e && e.message) || "error");
+
+// perkecil foto besar (>3 MB) supaya upload lebih cepat di jaringan lemah
+async function prep(file){
+  if(file.size <= 3*1024*1024 || /gif|svg/i.test(file.type)) return file;
+  try{
+    let bmp, w, h;
+    if(window.createImageBitmap){ bmp = await createImageBitmap(file); w = bmp.width; h = bmp.height; }
+    else{
+      const u = URL.createObjectURL(file);
+      bmp = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; });
+      w = bmp.naturalWidth; h = bmp.naturalHeight; URL.revokeObjectURL(u);
+    }
+    const k = Math.min(1, 3000 / Math.max(w, h));
+    const cv = document.createElement("canvas"); cv.width = Math.round(w*k); cv.height = Math.round(h*k);
+    const cx = cv.getContext("2d"); cx.fillStyle = "#fff"; cx.fillRect(0,0,cv.width,cv.height);
+    cx.drawImage(bmp, 0, 0, cv.width, cv.height);
+    if(bmp.close) bmp.close();
+    const blob = await new Promise(r => cv.toBlob(r, "image/jpeg", 0.9));
+    cv.width = cv.height = 0;
+    if(blob && blob.size < file.size) return new File([blob], file.name.replace(/\.\w+$/,"") + ".jpg", { type:"image/jpeg" });
+  }catch(e){ console.warn("prep gagal, pakai file asli", e); }
+  return file;
+}
+
+async function postImgbb(file){
+  const fd = new FormData(); fd.append("image", file);
+  const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 90000);
+  try{
+    const r = await fetch("https://api.imgbb.com/1/upload?key=" + IMGBB_KEY, { method:"POST", body:fd, signal:ctl.signal });
+    let j = null; try{ j = await r.json(); }catch(_){}
+    if(!r.ok || !j || !j.success) throw new Error((j && j.error && j.error.message) || ("ImgBB membalas error " + r.status));
+    return j.data;
+  } finally { clearTimeout(t); }
+}
 
 async function uploadOne(file){
-  const fd = new FormData();
-  fd.append("image", file);
-  const r = await fetch("https://api.imgbb.com/1/upload?key=" + IMGBB_KEY, { method:"POST", body:fd });
-  const j = await r.json();
-  if(!j.success) throw new Error((j.error && j.error.message) || "Upload gagal");
-  const d = j.data;
-  await saveItem({
-    url: d.image && d.image.url || d.url,
-    thumb: (d.thumb && d.thumb.url) || (d.medium && d.medium.url) || d.url,
+  const f = await prep(file);
+  let d;
+  for(let a = 0; a < 3; a++){
+    try{ d = await postImgbb(f); break; }
+    catch(e){ if(!isNetErr(e) || a === 2) throw e; await sleep(1500 * (a+1)); }
+  }
+  const url = (d.image && d.image.url) || d.url;
+  return saveItem({
+    url,
+    thumb: (d.thumb && d.thumb.url) || (d.medium && d.medium.url) || url,
     viewer: d.url_viewer, del: d.delete_url,
     name: (d.image && d.image.filename) || file.name
   });
@@ -368,20 +468,28 @@ async function uploadOne(file){
 $("file").onchange = async e => {
   const files = [...e.target.files]; e.target.value = "";
   if(!files.length) return;
-  let done = 0, fail = 0, idx = 0;
+  if(!navigator.onLine){ toast("Tidak ada internet. Upload tidak bisa dilakukan sekarang."); return; }
+  if(isSlow()) toast("Jaringan lemah, upload bisa lama atau gagal");
+  let done = 0, fail = 0, pend = 0, idx = 0, firstErr = "";
   const total = files.length;
   setProg("Mengupload 0/" + total, 0);
   async function worker(){
     while(idx < total){
       const f = files[idx++];
-      try{ await uploadOne(f); }catch(err){ fail++; console.error(err); }
+      const st = setTimeout(() => setNote("jaringan lambat, mohon tunggu"), 15000);
+      try{ if(await uploadOne(f) === "pending") pend++; }
+      catch(err){ fail++; if(!firstErr) firstErr = friendly(err); console.error(err); }
+      clearTimeout(st);
       done++;
       setProg("Mengupload " + done + "/" + total + (fail ? " (gagal " + fail + ")" : ""), done/total*100);
     }
   }
   await Promise.all([worker(), worker()]);
-  setProg(fail ? (total-fail) + " berhasil, " + fail + " gagal" : "Selesai, " + total + " foto ditambahkan", 100);
-  endProg();
+  let m = (total - fail) + " foto berhasil";
+  if(fail) m += ", " + fail + " gagal (" + firstErr + ")";
+  if(pend) m += ", " + pend + " menunggu sinkron saat online";
+  if(firstErr === "jaringan bermasalah") m += ". Periksa sinyal lalu coba lagi";
+  setProg(m, 100); endProg(); toast(m);
 };
 
 /* ---------- tempel link ImgBB ---------- */
@@ -398,7 +506,7 @@ async function fetchHtml(url){
       if(r.ok){ const h = await r.text(); if(h && h.length > 200) return h; }
     }catch(e){}
   }
-  throw new Error("Tidak bisa membuka " + url);
+  throw new Error("jaringan lemah, halaman ImgBB tidak bisa dibuka");
 }
 function extractLinks(text){
   const re = /(?:https?:\/\/)?(?:i\.)?ibb\.co(?:\.com)?\/[^\s"'<>\[\]\)\(,]+/gi;
@@ -458,43 +566,111 @@ async function resolveLink(u){
   return urls.map(x => ({ url:x, thumb:x, viewer:isAlbum ? "" : u, name:x.split("/").pop() }));
 }
 
-$("linkOk").onclick = async () => {
-  const txt = $("linkTxt").value.trim();
-  const links = parseInput(txt);
-  if(!links.length) return toast("Tidak ada link ImgBB ditemukan");
+async function addFromText(txt){
+  const tasks = parseInput(txt);
+  if(!tasks.length){ toast("Tidak ada link ImgBB ditemukan"); return false; }
+  if(!navigator.onLine){ toast("Tidak ada internet. Link belum bisa ditambahkan."); return false; }
+  if(isSlow()) toast("Jaringan lemah, proses bisa lama");
   closeSheets();
-  const have = new Set(items.map(i=>i.url));
-  let done = 0, added = 0, dup = 0, fail = 0;
-  setProg("Memproses 0/" + links.length, 0);
-  let idx = 0;
+  const have = new Set(items.map(i => ibbKey(i.url)));
+  let done = 0, added = 0, dup = 0, fail = 0, pend = 0, idx = 0, firstErr = "";
+  setProg("Memproses 0/" + tasks.length, 0);
   async function worker(){
-    while(idx < links.length){
-      const l = links[idx++];
+    while(idx < tasks.length){
+      const t = tasks[idx++];
       try{
-        const res = l.pair ? [l.pair] : await resolveLink(l.link);
+        const res = t.pair ? [t.pair] : await resolveLink(t.link);
         for(const r of res){
-          if(have.has(r.url)){ dup++; continue; }
-          have.add(r.url); await saveItem(r); added++;
+          const k = ibbKey(r.url);
+          if(have.has(k)){ dup++; continue; }
+          have.add(k);
+          if(await saveItem(r) === "pending") pend++;
+          added++;
         }
-      }catch(err){ fail++; console.error(err); }
+      }catch(err){ fail++; if(!firstErr) firstErr = friendly(err); console.error(err); }
       done++;
-      setProg("Memproses " + done + "/" + links.length, done/links.length*100);
+      setProg("Memproses " + done + "/" + tasks.length, done/tasks.length*100);
     }
   }
   await Promise.all([worker(), worker()]);
-  $("linkTxt").value = "";
   let m = added + " foto ditambahkan";
   if(dup) m += ", " + dup + " sudah ada";
-  if(fail) m += ", " + fail + " gagal";
+  if(fail) m += ", " + fail + " gagal (" + firstErr + ")";
+  if(pend) m += ", " + pend + " menunggu sinkron saat online";
   setProg(m, 100); endProg(); toast(m);
+  return added + dup > 0;
+}
+
+$("linkOk").onclick = async () => {
+  const txt = $("linkTxt").value.trim();
+  if(!txt) return toast("Tempel link dulu");
+  if(await addFromText(txt)) $("linkTxt").value = "";
 };
+$("linkClip").onclick = async () => {
+  try{
+    const txt = (await navigator.clipboard.readText() || "").trim();
+    if(!txt) return toast("Clipboard kosong");
+    $("linkTxt").value = txt;
+    if(await addFromText(txt)) $("linkTxt").value = "";
+  }catch(e){ toast("Clipboard tidak bisa dibaca. Tempel manual di kotak."); }
+};
+// otomatis diproses begitu link ImgBB ditempel, tanpa tombol
+$("linkTxt").addEventListener("paste", e => {
+  const pasted = (e.clipboardData || window.clipboardData).getData("text") || "";
+  if(!parseInput(pasted).length) return;   // bukan link ImgBB: paste biasa
+  e.preventDefault();
+  $("linkTxt").value = pasted;
+  addFromText(pasted).then(ok => { if(ok) $("linkTxt").value = ""; });
+});
+
+
+/* ---------- unduh ---------- */
+function fileNameOf(it){
+  let n = (it.name || "").trim();
+  const path = decodeURIComponent((urlVariants(it.url)[0] || "").split("?")[0].split("/").pop() || "");
+  const ext = (path.match(/\.(jpe?g|png|gif|webp|bmp|avif|heic)$/i) || [])[0] || ".jpg";
+  if(!n) n = path || ("foto-" + Date.now() + ext);
+  if(!/\.(jpe?g|png|gif|webp|bmp|avif|heic)$/i.test(n)) n += ext;
+  return n.replace(/[\\/:*?"<>|]+/g, "_");
+}
+async function downloadItem(it, silent){
+  if(!navigator.onLine){ toast("Tidak ada internet, tidak bisa mengunduh"); return false; }
+  const cands = urlVariants(it.url);
+  for(const u of cands){
+    try{
+      const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 60000);
+      const r = await fetch(u, { signal:ctl.signal }); clearTimeout(t);
+      if(!r.ok) continue;
+      const blob = await r.blob();
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = fileNameOf(it);
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 30000);
+      if(!silent) toast("Mengunduh " + a.download);
+      return true;
+    }catch(e){ console.warn("unduh gagal dari", u, e); }
+  }
+  // cadangan: buka gambar di tab baru, lalu tahan lama untuk simpan
+  if(!silent){ toast("Unduh langsung gagal, gambar dibuka di tab baru. Tahan gambar untuk menyimpan."); window.open(cands[0], "_blank"); }
+  return false;
+}
+async function downloadMany(list){
+  let ok = 0;
+  for(let i = 0; i < list.length; i++){
+    setProg("Mengunduh " + (i+1) + "/" + list.length, (i+1)/list.length*100);
+    if(await downloadItem(list[i], true)) ok++;
+    await new Promise(r => setTimeout(r, 500));
+  }
+  const m = ok + " dari " + list.length + " foto diunduh";
+  setProg(m, 100); endProg(); toast(m + (ok < list.length ? ". Sebagian gagal, cek jaringan" : ""));
+}
 
 /* ---------- viewer ---------- */
 function openViewer(i){ vIdx = i; $("viewer").classList.add("on"); showV(); }
-function closeViewer(){ $("viewer").classList.remove("on"); $("vImg").removeAttribute("src"); }
+function closeViewer(){ $("viewer").classList.remove("on"); const im = $("vImg"); im.onerror = null; im.dataset.u = ""; im.removeAttribute("src"); }
 function showV(){
   const it = viewList[vIdx]; if(!it) return closeViewer();
-  $("vImg").src = it.url;
+  setV(it);
   $("vInfo").textContent = (vIdx+1) + " / " + viewList.length;
   $("vFav").textContent = it.fav ? "★ Favorit" : "☆ Favorit";
 }
@@ -504,7 +680,7 @@ function refreshViewer(){
   const it = viewList[vIdx];
   $("vInfo").textContent = (vIdx+1) + " / " + viewList.length;
   $("vFav").textContent = it.fav ? "★ Favorit" : "☆ Favorit";
-  if($("vImg").getAttribute("src") !== it.url) $("vImg").src = it.url;
+  if($("vImg").dataset.u !== it.url) setV(it);
 }
 const step = d => { if(!viewList.length) return; vIdx = (vIdx + d + viewList.length) % viewList.length; showV(); };
 $("vClose").onclick = closeViewer;
@@ -516,10 +692,11 @@ $("vFav").onclick = async () => {
 };
 $("vCopy").onclick = async () => {
   const it = viewList[vIdx]; if(!it) return;
-  try{ await navigator.clipboard.writeText(it.url); toast("Link disalin"); }
+  try{ await navigator.clipboard.writeText(urlVariants(it.url)[0]); toast("Link disalin"); }
   catch(e){ prompt("Salin link:", it.url); }
 };
-$("vOpen").onclick = () => { const it = viewList[vIdx]; if(it) window.open(it.url, "_blank"); };
+$("vDown").onclick = () => { const it = viewList[vIdx]; if(it) downloadItem(it); };
+$("vOpen").onclick = () => { const it = viewList[vIdx]; if(it) window.open(urlVariants(it.url)[0], "_blank"); };
 $("vDel").onclick = () => { const it = viewList[vIdx]; if(it) askDelete([it.id]); };
 
 let tx = 0, ty = 0;
